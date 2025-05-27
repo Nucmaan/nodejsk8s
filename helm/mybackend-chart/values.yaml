@@ -4,7 +4,7 @@ replicaCount: 1
 image:
   repository: nasri1314/myapi
   pullPolicy: IfNotPresent
-  tag: "15269835649"
+  tag: "15273074013"
 ingress:
   enabled: false
   className: ""
