@@ -1,0 +1,83 @@
+name: CI/CD
+
+on:
+  push:
+    branches:
+    - main
+    paths-ignore:
+    - 'README.md'
+    - 'helm/**'
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run linting
+      run: npm run lint
+
+    - name: Run tests
+      run: npm run test
+
+    - name: Build check
+      run: npm run build
+
+  docker-build-push:
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Login to DockerHub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build and Push Docker image
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        file: ./Dockerfile
+        push: true
+        tags: |
+          ${{ secrets.DOCKERHUB_USERNAME }}/myapi:latest
+          ${{ secrets.DOCKERHUB_USERNAME }}/myapi:${{ github.run_id }}
+        cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/myapi:latest
+        cache-to: type=inline
+
+  update-helm-chart:
+    needs: docker-build-push
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.TOKEN }}
+
+    - name: Update tag in Helm chart
+      run: |
+        sed -i "s/tag: .*/tag: \"${{ github.run_id }}\"/" helm/mybackend-chart/values.yaml
+
+    - name: Commit and push changes
+      run: |
+        git config --global user.email "lucmaan1999@gmail.com"
+        git config --global user.name "nucmaan"
+        git add helm/mybackend-chart/values.yaml
+        git commit -m "Update image tag to ${{ github.run_id }} [skip ci]"
+        git push
