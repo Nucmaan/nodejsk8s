@@ -5,7 +5,7 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 
 app.get('/', (req, res) => {
-  res.json({ message: 'Welcome to the API for the Simple Express App v3.0.0' });
+  res.json({ message: 'Welcome to the API for the Simple Express App v4.0.0' });
 });
 
 app.get('/user', (req, res) => {
